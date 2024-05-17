@@ -16,12 +16,15 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Pong Game")
 background_image = pygame.image.load('resources/game_screen.png').convert()
 menu_background_image = pygame.image.load('resources/menu_screen.png').convert()
+win_screen_image = pygame.image.load('resources/win_screen.png').convert()
 
 # Инициализация платформ и мяча
 platform_width, platform_height = 120, 15
 ball_size = 20
 platform1_image = pygame.image.load('resources/platform1.png').convert_alpha()
+platform1_hit_image = pygame.image.load('resources/platform1_hit.png').convert_alpha()  # Текстура при ударе
 platform2_image = pygame.image.load('resources/platform2.png').convert_alpha()
+platform2_hit_image = pygame.image.load('resources/platform2_hit.png').convert_alpha()  # Текстура при ударе
 
 platform_speed = 10
 ball_speed = [0, 0]  # Изначально мяч стоит на месте
@@ -49,10 +52,13 @@ countdown_timer = 180  # 3 секунды * 60 кадров/секунду
 
 # Переменные для определения видимости мяча и платформ
 ball_visible = False
-platforms_visible = True
+
+# Таймеры для текстур платформ
+platform1_hit_timer = 0
+platform2_hit_timer = 0
 
 
-def handle_ball_platform_collision(ball, platform):
+def handle_ball_platform_collision(ball, platform, hit_timer_name):
     global ball_speed
     if ball.colliderect(platform):
         if ball_speed[1] > 0:  # Мяч движется вниз
@@ -60,6 +66,9 @@ def handle_ball_platform_collision(ball, platform):
         else:  # Мяч движется вверх
             ball.bottom = platform.bottom + ball.height
         ball_speed[1] = -ball_speed[1] + (ball_speed[1] / abs(ball_speed[1])) * ball_acceleration
+
+        # Запуск таймера для изменения текстуры платформы
+        globals()[hit_timer_name] = 60  # 1 секунда * 60 кадров/секунду
 
 
 def reset_ball():
@@ -83,9 +92,14 @@ def update_score(ball):
         # Заполняем экран чёрным цветом
         screen.fill(BLACK)
 
+        win_screen = pygame.transform.scale(win_screen_image, (WIDTH, HEIGHT))
+
         # Вывод сообщения о победе
         winner = "Player 1" if score1 >= 10 else "Player 2"
         victory_text = font.render(f"{winner} wins! Press Enter to restart", True, WHITE)
+
+        # Отрисовка фона и текста
+        screen.blit(win_screen, (0, 0))
         screen.blit(victory_text, (WIDTH // 2 - victory_text.get_width() // 2, HEIGHT // 2))
         pygame.display.flip()
 
@@ -158,8 +172,8 @@ while True:
                 ball_speed[1] = -ball_speed[1]
 
             # Обработка столкновений с платформами
-            handle_ball_platform_collision(ball, platform1)
-            handle_ball_platform_collision(ball, platform2)
+            handle_ball_platform_collision(ball, platform1, 'platform1_hit_timer')
+            handle_ball_platform_collision(ball, platform2, 'platform2_hit_timer')
 
             # Обработка счета
             update_score(ball)
@@ -168,13 +182,27 @@ while True:
             if ball.left <= 0 or ball.right >= WIDTH:
                 ball_speed[0] = -ball_speed[0]
 
+        # Обновление таймеров для текстур платформ
+        if platform1_hit_timer > 0:
+            platform1_hit_timer -= 1
+        if platform2_hit_timer > 0:
+            platform2_hit_timer -= 1
+
         # Очистка экрана
         screen.blit(background_image, (0, 0))
 
         # Отрисовка платформ и мяча, только если мяч видим
         if ball_visible:
-            screen.blit(platform1_image, platform1)
-            screen.blit(platform2_image, platform2)
+            if platform1_hit_timer > 0:
+                screen.blit(platform1_hit_image, platform1)
+            else:
+                screen.blit(platform1_image, platform1)
+
+            if platform2_hit_timer > 0:
+                screen.blit(platform2_hit_image, platform2)
+            else:
+                screen.blit(platform2_image, platform2)
+
             pygame.draw.ellipse(screen, WHITE, ball)
 
         # Отрисовка счета
